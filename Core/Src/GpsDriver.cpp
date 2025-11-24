@@ -4,15 +4,23 @@
 
 void GpsDriver::init()
 {
-	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
-	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_USART1);
-	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA2);
+    LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
+    LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_USART1);
+    LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA2);
 
-	LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_9 | LL_GPIO_PIN_10, LL_GPIO_MODE_ALTERNATE);
-	LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_9 | LL_GPIO_PIN_10, LL_GPIO_OUTPUT_PUSHPULL);
-	LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_9 | LL_GPIO_PIN_10, LL_GPIO_PULL_UP);
-	LL_GPIO_SetPinSpeed(GPIOA, LL_GPIO_PIN_9 | LL_GPIO_PIN_10, LL_GPIO_SPEED_FREQ_VERY_HIGH);
-	LL_GPIO_SetAFPin_8_15(GPIOA, LL_GPIO_PIN_9 | LL_GPIO_PIN_10, LL_GPIO_AF_7);
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_9, LL_GPIO_MODE_ALTERNATE);
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_10, LL_GPIO_MODE_ALTERNATE);
+
+    LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_9 | LL_GPIO_PIN_10, LL_GPIO_OUTPUT_PUSHPULL);
+
+    LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_9, LL_GPIO_PULL_UP);
+    LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_10, LL_GPIO_PULL_UP);
+
+    LL_GPIO_SetPinSpeed(GPIOA, LL_GPIO_PIN_9, LL_GPIO_SPEED_FREQ_VERY_HIGH);
+	LL_GPIO_SetPinSpeed(GPIOA, LL_GPIO_PIN_10, LL_GPIO_SPEED_FREQ_VERY_HIGH);
+
+    LL_GPIO_SetAFPin_8_15(GPIOA, LL_GPIO_PIN_9, LL_GPIO_AF_7);
+    LL_GPIO_SetAFPin_8_15(GPIOA, LL_GPIO_PIN_10, LL_GPIO_AF_7);
 
 	LL_DMA_SetChannelSelection(DMA2, LL_DMA_STREAM_2, LL_DMA_CHANNEL_4);
 
@@ -33,11 +41,11 @@ void GpsDriver::init()
 
 	LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_2);
 
-	LL_USART_SetBaudRate(USART1, SystemCoreClock, LL_USART_OVERSAMPLING_16, 9600);
-	LL_USART_SetDataWidth(USART1, LL_USART_DATAWIDTH_8B);
-	LL_USART_SetParity(USART1, LL_USART_PARITY_NONE);
-	LL_USART_SetStopBitsLength(USART1, LL_USART_STOPBITS_1);
-	LL_USART_SetTransferDirection(USART1, LL_USART_DIRECTION_TX_RX);
+    LL_USART_SetBaudRate(USART1, SystemCoreClock, LL_USART_OVERSAMPLING_16, 9600);
+    LL_USART_SetDataWidth(USART1, LL_USART_DATAWIDTH_8B);
+    LL_USART_SetParity(USART1, LL_USART_PARITY_NONE);
+    LL_USART_SetStopBitsLength(USART1, LL_USART_STOPBITS_1);
+    LL_USART_SetTransferDirection(USART1, LL_USART_DIRECTION_TX_RX);
 
 	LL_USART_EnableDMAReq_RX(USART1);
 	LL_USART_Enable(USART1);
@@ -45,7 +53,6 @@ void GpsDriver::init()
 
 bool GpsDriver::parse()
 {
-    // *** 1. ТРЕКІНГ ТА КОПІЮВАННЯ (ОК) ***
 	uint32_t bytes_remaining{LL_DMA_GetDataLength(DMA2, LL_DMA_STREAM_2)};
 	size_t currPosition{BUFFER_SIZE - bytes_remaining};
 	size_t newDataLength{ 0 };
@@ -55,53 +62,40 @@ bool GpsDriver::parse()
 	else
 		newDataLength = BUFFER_SIZE - this->_lastReadPosition + currPosition;
 
-    // Якщо нових даних немає, оновлюємося і виходимо
 	if (newDataLength == 0)
 	{
 		this->_lastReadPosition = currPosition;
 		return false;
 	}
 
-	// --- КОПІЮВАННЯ ---
-
-    // Логіка копіювання об'єднується тут, якщо newDataLength > 0
     size_t chunk1Len{BUFFER_SIZE - _lastReadPosition};
     size_t bytesToCopyFromChunk1 = std::min(newDataLength, chunk1Len);
 
-    // Копіювання частини 1
     std::memcpy(this->_tempSentenceBuffer.data(), buffer.data() + this->_lastReadPosition, bytesToCopyFromChunk1);
 
-    // Копіювання частини 2 (якщо Wrap-Around)
     if (newDataLength > chunk1Len)
         std::memcpy(this->_tempSentenceBuffer.data() + chunk1Len, buffer.data(), newDataLength - chunk1Len);
 
-    // Встановлюємо null-термінатор для безпечного парсингу C-функціями
     this->_tempSentenceBuffer.data()[newDataLength] = '\0';
-
-    // --- 2. ПАРСИНГ NMEA З TEMP БУФЕРА ---
 
     char *start_sentence = strstr(reinterpret_cast<char*>(this->_tempSentenceBuffer.data()), "$GPRMC");
     if (start_sentence != nullptr)
 	{
 		char *save_pointer = nullptr;
 
-        // 1. $GPRMC (пропуск заголовка)
 		char *token = strtok_r(start_sentence, ",", &save_pointer);
 
-        // 2. ЧАС (Token 1)
 		token = strtok_r(NULL, ",", &save_pointer);
 		if (token != nullptr)
 		{
 			long raw_time = std::strtol(token, nullptr, 10);
-			this->_currentData.time_sec = static_cast<uint32_t>(raw_time / 10000) * 3600; // Години
-			this->_currentData.time_sec += static_cast<uint32_t>((raw_time % 10000) / 100) * 60; // Хвилини
-			this->_currentData.time_sec += static_cast<uint32_t>(raw_time % 100); // Секунди
+			this->_currentData.time_sec = static_cast<uint32_t>(raw_time / 10000) * 3600;
+			this->_currentData.time_sec += static_cast<uint32_t>((raw_time % 10000) / 100) * 60;
+			this->_currentData.time_sec += static_cast<uint32_t>(raw_time % 100);
 		}
 
-        // 3. Стан (Token 2 - пропуск: A=Active)
 		token = strtok_r(NULL, ",", &save_pointer);
 
-        // 4. ШИРОТА (Token 3)
 		token = strtok_r(NULL, ",", &save_pointer);
 		if (token != nullptr)
 		{
@@ -109,16 +103,13 @@ bool GpsDriver::parse()
 			int degrees = static_cast<int>(raw_lat / 100);
 			float minutes = raw_lat - (degrees * 100);
 
-            // ВИПРАВЛЕНО: Правильна конвертація DDMM.MMM -> Decimal Degrees
 			this->_currentData.latitude = degrees + (minutes / 60.0f);
 		}
 
-        // 5. N/S (Token 4)
 		token = strtok_r(NULL, ",", &save_pointer);
 		if (token != nullptr && *token == 'S')
 			this->_currentData.latitude *= -1.0f;
 
-        // 6. ДОВГОТА (Token 5)
 		token = strtok_r(NULL, ",", &save_pointer);
 		if (token != nullptr)
 		{
@@ -126,20 +117,15 @@ bool GpsDriver::parse()
 			int degrees = static_cast<int>(raw_lon / 100);
 			float minutes = raw_lon - (degrees * 100);
 
-            // ВИПРАВЛЕНО: Правильна конвертація DDMM.MMM -> Decimal Degrees
 			this->_currentData.longitude = degrees + (minutes / 60.0f);
 		}
 
-        // 7. E/W (Token 6)
 		token = strtok_r(NULL, ",", &save_pointer);
 		if (token != nullptr && *token == 'W')
 			this->_currentData.longitude *= -1.0f;
 
-        // Можна додати ще багато токенів (швидкість, дата, магнітний курс)
 	}
 
-    // --- 3. ФІНАЛ ---
-    // Оновлюємо позицію тільки ОДИН РАЗ, якщо були нові дані.
 	this->_lastReadPosition = currPosition;
-	return true; // Успішно опрацювали і, можливо, знайшли дані.
+	return true;
 }

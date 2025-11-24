@@ -25,8 +25,6 @@ int main(void)
 	  {
 		  Coordinates coords = gpsDriver.getCoordinates();
 	  }
-
-	  LL_mDelay(10);
   }
 }
 

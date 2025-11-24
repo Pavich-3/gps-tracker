@@ -16,7 +16,6 @@ public:
 	GpsDriver() = default;
 
 	void init();
-	const uint8_t* getRawBuffer();
 
 	bool parse();
 	Coordinates getCoordinates() const {
@@ -33,5 +32,4 @@ private:
 
 	size_t _lastReadPosition { 0 };
 	Coordinates _currentData { };
-	bool findAndProcessSentence(const char *sentence, size_t length);
 };
