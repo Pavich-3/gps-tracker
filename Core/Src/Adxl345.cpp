@@ -1,0 +1,58 @@
+#include "Adxl345.hpp"
+
+#define SDO LL_GPIO_PIN_4
+#define CS LL_GPIO_PIN_5
+#define SCL_PIN LL_GPIO_PIN_6
+#define SDA_PIN LL_GPIO_PIN_7
+
+void Adxl345::init(void)
+{
+	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
+	LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_I2C1);
+
+	LL_GPIO_SetPinMode(GPIOB, SCL_PIN, LL_GPIO_MODE_ALTERNATE);
+	LL_GPIO_SetPinPull(GPIOB, SCL_PIN, LL_GPIO_PULL_UP);
+	LL_GPIO_SetPinSpeed(GPIOB, SCL_PIN, LL_GPIO_SPEED_FREQ_VERY_HIGH);
+	LL_GPIO_SetAFPin_0_7(GPIOB, SCL_PIN, LL_GPIO_AF_4);
+
+	LL_GPIO_SetPinMode(GPIOB, SDA_PIN, LL_GPIO_MODE_ALTERNATE);
+	LL_GPIO_SetPinPull(GPIOB, SDA_PIN, LL_GPIO_PULL_UP);
+	LL_GPIO_SetPinSpeed(GPIOB, SDA_PIN, LL_GPIO_SPEED_FREQ_VERY_HIGH);
+	LL_GPIO_SetAFPin_0_7(GPIOB, SDA_PIN, LL_GPIO_AF_4);
+
+	LL_GPIO_SetPinOutputType(GPIOB, SCL_PIN | SDA_PIN, LL_GPIO_OUTPUT_OPENDRAIN);
+	LL_GPIO_SetPinOutputType(GPIOB, SDO | CS, LL_GPIO_OUTPUT_PUSHPULL);
+
+	LL_GPIO_SetPinMode(GPIOB, SDO, LL_GPIO_MODE_OUTPUT);
+	LL_GPIO_SetPinSpeed(GPIOB, SDO, LL_GPIO_SPEED_FREQ_LOW);
+	LL_GPIO_ResetOutputPin(GPIOB, SDO);
+
+	LL_GPIO_SetPinMode(GPIOB, CS, LL_GPIO_MODE_OUTPUT);
+	LL_GPIO_SetPinSpeed(GPIOB, CS, LL_GPIO_SPEED_FREQ_LOW);
+	LL_GPIO_SetOutputPin(GPIOB, CS);
+
+	LL_I2C_InitTypeDef I2C_InitStruct = {
+			.PeripheralMode = LL_I2C_MODE_I2C,
+			.ClockSpeed = 100000,
+			.DutyCycle = LL_I2C_DUTYCYCLE_2,
+			.AnalogFilter = 0,
+			.DigitalFilter = 0,
+			.OwnAddress1 = 0,
+			.TypeAcknowledge = LL_I2C_ACK,
+			.OwnAddrSize = LL_I2C_OWNADDRESS1_7BIT
+	};
+	LL_I2C_Init(I2C1, &I2C_InitStruct);
+
+	LL_I2C_EnableIT_EVT(I2C1);
+	LL_I2C_EnableIT_ERR(I2C1);
+	LL_I2C_EnableIT_BUF(I2C1);
+
+	NVIC_SetPriority(I2C1_EV_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 0, 0));
+	NVIC_EnableIRQ(I2C1_EV_IRQn);
+
+	NVIC_SetPriority(I2C1_ER_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 0, 1));
+	NVIC_EnableIRQ(I2C1_ER_IRQn);
+
+	LL_I2C_Enable(I2C1);
+}
+

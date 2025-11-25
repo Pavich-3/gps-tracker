@@ -1,5 +1,6 @@
 #include <main.hpp>
 #include "GpsDriver.hpp"
+#include <stdio.h>
 
 void SystemClock_Config(void);
 
@@ -7,7 +8,6 @@ GpsDriver gpsDriver{};
 
 int main(void)
 {
-
   LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SYSCFG);
   LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_PWR);
 
@@ -15,6 +15,7 @@ int main(void)
 
   NVIC_SetPriority(SysTick_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),15, 0));
 
+  printf("Hello from BlackPill via ST-Link!\n");
 
   SystemClock_Config();
   gpsDriver.init();
