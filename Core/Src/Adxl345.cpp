@@ -1,5 +1,7 @@
 #include "Adxl345.hpp"
 
+#define ADXL345_ADDR 0x53
+
 #define SDO LL_GPIO_PIN_4
 #define CS LL_GPIO_PIN_5
 #define SCL_PIN LL_GPIO_PIN_6
@@ -54,5 +56,45 @@ void Adxl345::init(void)
 	NVIC_EnableIRQ(I2C1_ER_IRQn);
 
 	LL_I2C_Enable(I2C1);
+}
+
+bool Adxl345::I2C_Write(uint8_t *reg_addr, uint8_t *data)
+{
+    uint32_t timeout = 10000;
+
+    while (LL_I2C_IsActiveFlag_BUSY(I2C1))
+        if ((--timeout) == 0) return false;
+    LL_I2C_GenerateStartCondition(I2C1);
+
+    timeout = 10000;
+    while (!LL_I2C_IsActiveFlag_SB(I2C1))
+        if ((--timeout) == 0) return false;
+    LL_I2C_TransmitData8(I2C1, ADXL345_ADDR);
+
+    timeout = 10000;
+    while (!LL_I2C_IsActiveFlag_ADDR(I2C1))
+    {
+        if ((--timeout) == 0) return false;
+        if (LL_I2C_IsActiveFlag_AF(I2C1)) { return false; }
+    }
+    LL_I2C_ClearFlag_ADDR(I2C1);
+
+    timeout = 10000;
+    while (!LL_I2C_IsActiveFlag_TXE(I2C1))
+        if ((--timeout) == 0) return false;
+    LL_I2C_TransmitData8(I2C1, *reg_addr);
+
+    timeout = 10000;
+    while (!LL_I2C_IsActiveFlag_TXE(I2C1))
+        if ((--timeout) == 0) return false;
+    LL_I2C_TransmitData8(I2C1, *data);
+
+    timeout = 10000;
+    while (!LL_I2C_IsActiveFlag_BTF(I2C1))
+        if ((--timeout) == 0) return false;
+
+    LL_I2C_GenerateStopCondition(I2C1);
+
+    return true;
 }
 

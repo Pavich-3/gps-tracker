@@ -10,6 +10,8 @@ class Adxl345
 public:
 	void init(void);
 
+	bool I2C_Write(uint8_t *reg_addr, uint8_t *data);
+
 private:
     static constexpr size_t DATA_SIZE = 6;
 	std::array<uint8_t, DATA_SIZE> _raw_buffer = {};
