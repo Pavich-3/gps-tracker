@@ -5,6 +5,13 @@
 #include <cstdint>
 #include <array>
 
+struct Dimensions
+{
+	int8_t x = 0;
+	int8_t y = 0;
+	int8_t z = 0;
+};
+
 class Adxl345
 {
 public:
@@ -12,7 +19,8 @@ public:
 
 	bool configure(void);
 
-	bool I2C_Write(uint8_t *reg_addr, uint8_t *data);
+	bool I2C_Write(uint8_t reg_addr, uint8_t data);
+	bool I2C_Read(uint8_t reg_addr, uint8_t *buffer);
 
 private:
     static constexpr size_t DATA_SIZE = 6;

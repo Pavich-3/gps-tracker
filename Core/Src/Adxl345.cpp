@@ -1,6 +1,6 @@
 #include "Adxl345.hpp"
 
-#define ADXL345_ADDR 0x53 << 1
+#define ADXL345_ADDR 0x53
 
 #define POWER_CTL 0x2D
 #define DATA_FORMAT 0x31
@@ -70,7 +70,7 @@ void Adxl345::init(void)
 	LL_I2C_Enable(I2C1);
 }
 
-bool Adxl345::I2C_Write(uint8_t *reg_addr, uint8_t *data)
+bool Adxl345::I2C_Write(uint8_t reg_addr, uint8_t data)
 {
     uint32_t timeout = 10000;
 
@@ -81,7 +81,7 @@ bool Adxl345::I2C_Write(uint8_t *reg_addr, uint8_t *data)
     timeout = 10000;
     while (!LL_I2C_IsActiveFlag_SB(I2C1))
         if ((--timeout) == 0) return false;
-    LL_I2C_TransmitData8(I2C1, ADXL345_ADDR);
+    LL_I2C_TransmitData8(I2C1, ADXL345_ADDR << 1);
 
     timeout = 10000;
     while (!LL_I2C_IsActiveFlag_ADDR(I2C1))
@@ -94,12 +94,12 @@ bool Adxl345::I2C_Write(uint8_t *reg_addr, uint8_t *data)
     timeout = 10000;
     while (!LL_I2C_IsActiveFlag_TXE(I2C1))
         if ((--timeout) == 0) return false;
-    LL_I2C_TransmitData8(I2C1, *reg_addr);
+    LL_I2C_TransmitData8(I2C1, reg_addr);
 
     timeout = 10000;
     while (!LL_I2C_IsActiveFlag_TXE(I2C1))
         if ((--timeout) == 0) return false;
-    LL_I2C_TransmitData8(I2C1, *data);
+    LL_I2C_TransmitData8(I2C1, data);
 
     timeout = 10000;
     while (!LL_I2C_IsActiveFlag_BTF(I2C1))
@@ -108,5 +108,52 @@ bool Adxl345::I2C_Write(uint8_t *reg_addr, uint8_t *data)
     LL_I2C_GenerateStopCondition(I2C1);
 
     return true;
+}
+
+bool Adxl345::I2C_Read(uint8_t reg_addr, uint8_t *buffer)
+{
+	uint32_t timeout = 10000;
+
+	while(LL_I2C_IsActiveFlag_BUSY(I2C1))
+		if (!(--timeout)) return false;
+
+	LL_I2C_GenerateStartCondition(I2C1);
+	timeout = 10000;
+	while(!LL_I2C_IsActiveFlag_SB(I2C1))
+		if (!(--timeout)) return false;
+
+	LL_I2C_TransmitData8(I2C1, ADXL345_ADDR);
+	timeout = 10000;
+	while(!LL_I2C_IsActiveFlag_ADDR(I2C1))
+		if (!(--timeout)) return false;
+
+	LL_I2C_ClearFlag_ADDR(I2C1);
+
+	LL_I2C_TransmitData8(I2C1, reg_addr);
+	timeout = 10000;
+	while(!LL_I2C_IsActiveFlag_TXE(I2C1))
+		if (!(--timeout)) return false;
+
+	LL_I2C_GenerateStartCondition(I2C1);
+	timeout = 10000;
+	while(!(LL_I2C_IsActiveFlag_SB(I2C1)))
+		if (!(--timeout)) return false;
+
+	LL_I2C_TransmitData8(I2C1, ADXL345_ADDR | 1);
+	timeout = 10000;
+	while(!(LL_I2C_IsActiveFlag_ADDR(I2C1)))
+		if (!(--timeout)) return false;
+
+	LL_I2C_AcknowledgeNextData(I2C1, LL_I2C_NACK);
+	LL_I2C_GenerateStopCondition(I2C1);
+	LL_I2C_ClearFlag_ADDR(I2C1);
+
+	timeout = 10000;
+	while(!(LL_I2C_IsActiveFlag_RXNE(I2C1)))
+		if (!(--timeout)) return false;
+
+	*buffer = LL_I2C_ReceiveData8(I2C1);
+
+	return true;
 }
 
