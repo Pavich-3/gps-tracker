@@ -10,6 +10,8 @@ class Adxl345
 public:
 	void init(void);
 
+	bool configure(void);
+
 	bool I2C_Write(uint8_t *reg_addr, uint8_t *data);
 
 private:

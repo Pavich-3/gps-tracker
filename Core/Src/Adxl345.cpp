@@ -1,11 +1,23 @@
 #include "Adxl345.hpp"
 
-#define ADXL345_ADDR 0x53
+#define ADXL345_ADDR 0x53 << 1
+
+#define POWER_CTL 0x2D
+#define DATA_FORMAT 0x31
 
 #define SDO LL_GPIO_PIN_4
 #define CS LL_GPIO_PIN_5
 #define SCL_PIN LL_GPIO_PIN_6
 #define SDA_PIN LL_GPIO_PIN_7
+
+bool Adxl345::configure(void)
+{
+	if (!I2C_Write(DATA_FORMAT, 0x08))
+		return false;
+
+	if (!I2C_Write(POWER_CTL, 0x08))
+		return false;
+}
 
 void Adxl345::init(void)
 {
