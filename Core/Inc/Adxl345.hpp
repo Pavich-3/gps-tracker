@@ -5,11 +5,11 @@
 #include <cstdint>
 #include <array>
 
-struct Dimensions
+struct Acceleration
 {
-	int8_t x = 0;
-	int8_t y = 0;
-	int8_t z = 0;
+	float x_g = 0.0f;
+	float y_g = 0.0f;
+	float z_g = 0.0f;
 };
 
 class Adxl345
@@ -19,11 +19,15 @@ public:
 
 	bool configure(void);
 
-	bool I2C_Write(uint8_t reg_addr, uint8_t data);
-	bool I2C_Read(uint8_t reg_addr, uint8_t *buffer);
-	bool I2C_ReadBuffer(uint8_t reg_addr, uint8_t *buffer, uint16_t length);
+	Acceleration getAcceleration(void) { return processRawData(); }
 
 private:
     static constexpr size_t DATA_SIZE = 6;
 	std::array<uint8_t, DATA_SIZE> _raw_buffer = {};
+
+	bool I2C_Write(uint8_t reg_addr, uint8_t data);
+	bool I2C_Read(uint8_t reg_addr, uint8_t *buffer);
+	bool I2C_ReadBuffer(uint8_t reg_addr, uint8_t *buffer, size_t length);
+
+	Acceleration processRawData(void);
 };

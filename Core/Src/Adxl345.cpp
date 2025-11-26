@@ -4,6 +4,9 @@
 
 #define POWER_CTL 0x2D
 #define DATA_FORMAT 0x31
+#define DATA 0x32
+
+#define SCALE_FACTOR 0.0039f
 
 #define SDO LL_GPIO_PIN_4
 #define CS LL_GPIO_PIN_5
@@ -17,6 +20,28 @@ bool Adxl345::configure(void)
 
 	if (!I2C_Write(POWER_CTL, 0x08))
 		return false;
+
+	return true;
+}
+
+Acceleration Adxl345::processRawData(void)
+{
+	if (!I2C_ReadBuffer(DATA, this->_raw_buffer.data(), DATA_SIZE))
+		return Acceleration{};
+
+	auto getAxis = [&](uint8_t index) -> int16_t {
+		return static_cast<int16_t>((_raw_buffer[index+1] << 8) | _raw_buffer[index]);
+	};
+
+	int16_t x_raw = getAxis(0);
+	int16_t y_raw = getAxis(2);
+	int16_t z_raw = getAxis(4);
+
+	return Acceleration{
+		.x_g = x_raw * SCALE_FACTOR,
+		.y_g = y_raw * SCALE_FACTOR,
+		.z_g = z_raw * SCALE_FACTOR
+	};
 }
 
 void Adxl345::init(void)
@@ -157,7 +182,7 @@ bool Adxl345::I2C_Read(uint8_t reg_addr, uint8_t *buffer)
 	return true;
 }
 
-bool Adxl345::I2C_ReadBuffer(uint8_t reg_addr, uint8_t *buffer, uint16_t length)
+bool Adxl345::I2C_ReadBuffer(uint8_t reg_addr, uint8_t *buffer, size_t length)
 {
     // 1. Окремий випадок для 1 байта
     if (length == 1) return I2C_Read(reg_addr, buffer);
