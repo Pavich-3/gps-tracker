@@ -12,12 +12,10 @@ int main(void)
   LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_PWR);
 
   NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
-
   NVIC_SetPriority(SysTick_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),15, 0));
 
-  printf("Hello from BlackPill via ST-Link!\n");
-
   SystemClock_Config();
+
   gpsDriver.init();
 
   while (1)

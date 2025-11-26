@@ -21,6 +21,7 @@ public:
 
 	bool I2C_Write(uint8_t reg_addr, uint8_t data);
 	bool I2C_Read(uint8_t reg_addr, uint8_t *buffer);
+	bool I2C_ReadBuffer(uint8_t reg_addr, uint8_t *buffer, uint16_t length);
 
 private:
     static constexpr size_t DATA_SIZE = 6;

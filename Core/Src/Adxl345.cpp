@@ -145,8 +145,8 @@ bool Adxl345::I2C_Read(uint8_t reg_addr, uint8_t *buffer)
 		if (!(--timeout)) return false;
 
 	LL_I2C_AcknowledgeNextData(I2C1, LL_I2C_NACK);
-	LL_I2C_GenerateStopCondition(I2C1);
 	LL_I2C_ClearFlag_ADDR(I2C1);
+	LL_I2C_GenerateStopCondition(I2C1);
 
 	timeout = 10000;
 	while(!(LL_I2C_IsActiveFlag_RXNE(I2C1)))
@@ -157,3 +157,68 @@ bool Adxl345::I2C_Read(uint8_t reg_addr, uint8_t *buffer)
 	return true;
 }
 
+bool Adxl345::I2C_ReadBuffer(uint8_t reg_addr, uint8_t *buffer, uint16_t length)
+{
+    // 1. Окремий випадок для 1 байта
+    if (length == 1) return I2C_Read(reg_addr, buffer);
+
+    uint32_t timeout = 10000;
+
+    // --- ФАЗА 1: Вибір регістра ---
+    while(LL_I2C_IsActiveFlag_BUSY(I2C1)) if (!(--timeout)) return false;
+
+    LL_I2C_GenerateStartCondition(I2C1);
+    timeout = 10000;
+    while(!LL_I2C_IsActiveFlag_SB(I2C1)) if (!(--timeout)) return false;
+
+    LL_I2C_TransmitData8(I2C1, ADXL345_ADDR);
+    timeout = 10000;
+    while(!LL_I2C_IsActiveFlag_ADDR(I2C1)) if (!(--timeout)) return false;
+    LL_I2C_ClearFlag_ADDR(I2C1);
+
+    LL_I2C_TransmitData8(I2C1, reg_addr);
+    timeout = 10000;
+    while(!LL_I2C_IsActiveFlag_TXE(I2C1)) if (!(--timeout)) return false;
+
+    // --- ФАЗА 2: Читання масиву ---
+    LL_I2C_GenerateStartCondition(I2C1);
+    timeout = 10000;
+    while(!LL_I2C_IsActiveFlag_SB(I2C1)) if (!(--timeout)) return false;
+
+    LL_I2C_TransmitData8(I2C1, ADXL345_ADDR | 1);
+    timeout = 10000;
+    while(!LL_I2C_IsActiveFlag_ADDR(I2C1)) if (!(--timeout)) return false;
+
+    // Вмикаємо ACK, бо ми плануємо читати багато байтів
+    LL_I2C_AcknowledgeNextData(I2C1, LL_I2C_ACK);
+    LL_I2C_ClearFlag_ADDR(I2C1);
+
+    // Читаємо всі байти, КРІМ ОСТАННЬОГО
+    while (length > 1)
+    {
+        timeout = 10000;
+        while (!LL_I2C_IsActiveFlag_RXNE(I2C1)) if (!(--timeout)) return false;
+
+        *buffer = LL_I2C_ReceiveData8(I2C1);
+        buffer++;
+        length--;
+    }
+
+    // --- ФАЗА 3: Останній байт (NACK + STOP) ---
+    // Ми вийшли з циклу, коли length == 1. Тобто залишився один байт в дорозі.
+
+    // 1. Готуємо NACK (щоб сказати "досить")
+    LL_I2C_AcknowledgeNextData(I2C1, LL_I2C_NACK);
+
+    // 2. Готуємо STOP
+    LL_I2C_GenerateStopCondition(I2C1);
+
+    // 3. Чекаємо останній байт
+    timeout = 10000;
+    while (!LL_I2C_IsActiveFlag_RXNE(I2C1)) if (!(--timeout)) return false;
+
+    // 4. Читаємо останній байт
+    *buffer = LL_I2C_ReceiveData8(I2C1);
+
+    return true; // <--- НЕ ЗАБУВАЙТЕ ЦЕ!
+}
