@@ -1,10 +1,12 @@
 #include <main.hpp>
-#include "GpsDriver.hpp"
 #include <stdio.h>
+#include "GpsDriver.hpp"
+#include "Adxl345.hpp"
 
 void SystemClock_Config(void);
 
 GpsDriver gpsDriver{};
+Adxl345 adxlDriver{};
 
 int main(void)
 {
@@ -18,12 +20,24 @@ int main(void)
 
   gpsDriver.init();
 
+  adxlDriver.init();
+  if (!adxlDriver.configure())
+  {
+	  while (1)
+	  {
+		  LL_GPIO_TogglePin(GPIOC, LED_PIN);
+		  LL_mDelay(100);
+	  }
+  }
+
   while (1)
   {
-	  if (gpsDriver.parse())
-	  {
-		  Coordinates coords = gpsDriver.getCoordinates();
-	  }
+//	  if (gpsDriver.parse())
+//	  {
+//		  Coordinates coords = gpsDriver.getCoordinates();
+//	  }
+	  Acceleration acc = adxlDriver.getAcceleration();
+	  LL_mDelay(100);
   }
 }
 

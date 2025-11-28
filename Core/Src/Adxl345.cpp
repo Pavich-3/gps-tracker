@@ -47,6 +47,7 @@ Acceleration Adxl345::processRawData(void)
 void Adxl345::init(void)
 {
 	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
+	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOC);
 	LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_I2C1);
 
 	LL_GPIO_SetPinMode(GPIOB, SCL_PIN, LL_GPIO_MODE_ALTERNATE);
@@ -70,6 +71,11 @@ void Adxl345::init(void)
 	LL_GPIO_SetPinSpeed(GPIOB, CS, LL_GPIO_SPEED_FREQ_LOW);
 	LL_GPIO_SetOutputPin(GPIOB, CS);
 
+	LL_GPIO_SetPinMode(GPIOC, LED_PIN, LL_GPIO_MODE_OUTPUT);
+	LL_GPIO_SetPinOutputType(GPIOC, LED_PIN, LL_GPIO_OUTPUT_PUSHPULL);
+	LL_GPIO_SetPinPull(GPIOC, LED_PIN, LL_GPIO_PULL_UP);
+	LL_GPIO_SetPinSpeed(GPIOC, LED_PIN, LL_GPIO_SPEED_FREQ_LOW);
+
 	LL_I2C_InitTypeDef I2C_InitStruct = {
 			.PeripheralMode = LL_I2C_MODE_I2C,
 			.ClockSpeed = 100000,
@@ -82,15 +88,15 @@ void Adxl345::init(void)
 	};
 	LL_I2C_Init(I2C1, &I2C_InitStruct);
 
-	LL_I2C_EnableIT_EVT(I2C1);
-	LL_I2C_EnableIT_ERR(I2C1);
-	LL_I2C_EnableIT_BUF(I2C1);
-
-	NVIC_SetPriority(I2C1_EV_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 0, 0));
-	NVIC_EnableIRQ(I2C1_EV_IRQn);
-
-	NVIC_SetPriority(I2C1_ER_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 0, 1));
-	NVIC_EnableIRQ(I2C1_ER_IRQn);
+//	LL_I2C_EnableIT_EVT(I2C1);
+//	LL_I2C_EnableIT_ERR(I2C1);
+//	LL_I2C_EnableIT_BUF(I2C1);
+//
+//	NVIC_SetPriority(I2C1_EV_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 0, 0));
+//	NVIC_EnableIRQ(I2C1_EV_IRQn);
+//
+//	NVIC_SetPriority(I2C1_ER_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 0, 1));
+//	NVIC_EnableIRQ(I2C1_ER_IRQn);
 
 	LL_I2C_Enable(I2C1);
 }
@@ -147,7 +153,7 @@ bool Adxl345::I2C_Read(uint8_t reg_addr, uint8_t *buffer)
 	while(!LL_I2C_IsActiveFlag_SB(I2C1))
 		if (!(--timeout)) return false;
 
-	LL_I2C_TransmitData8(I2C1, ADXL345_ADDR);
+	LL_I2C_TransmitData8(I2C1, ADXL345_ADDR << 1);
 	timeout = 10000;
 	while(!LL_I2C_IsActiveFlag_ADDR(I2C1))
 		if (!(--timeout)) return false;
@@ -164,7 +170,7 @@ bool Adxl345::I2C_Read(uint8_t reg_addr, uint8_t *buffer)
 	while(!(LL_I2C_IsActiveFlag_SB(I2C1)))
 		if (!(--timeout)) return false;
 
-	LL_I2C_TransmitData8(I2C1, ADXL345_ADDR | 1);
+	LL_I2C_TransmitData8(I2C1, (ADXL345_ADDR << 1) | 1);
 	timeout = 10000;
 	while(!(LL_I2C_IsActiveFlag_ADDR(I2C1)))
 		if (!(--timeout)) return false;
@@ -184,7 +190,7 @@ bool Adxl345::I2C_Read(uint8_t reg_addr, uint8_t *buffer)
 
 bool Adxl345::I2C_ReadBuffer(uint8_t reg_addr, uint8_t *buffer, size_t length)
 {
-    // 1. Окремий випадок для 1 байта
+    // 1. Окремий випадок для 1 байта (тут у тебе все ок, бо I2C_Read ти виправив)
     if (length == 1) return I2C_Read(reg_addr, buffer);
 
     uint32_t timeout = 10000;
@@ -196,7 +202,9 @@ bool Adxl345::I2C_ReadBuffer(uint8_t reg_addr, uint8_t *buffer, size_t length)
     timeout = 10000;
     while(!LL_I2C_IsActiveFlag_SB(I2C1)) if (!(--timeout)) return false;
 
-    LL_I2C_TransmitData8(I2C1, ADXL345_ADDR);
+    // !!! ВИПРАВЛЕННЯ ТУТ: Додано << 1 (Запис адреси)
+    LL_I2C_TransmitData8(I2C1, ADXL345_ADDR << 1);
+
     timeout = 10000;
     while(!LL_I2C_IsActiveFlag_ADDR(I2C1)) if (!(--timeout)) return false;
     LL_I2C_ClearFlag_ADDR(I2C1);
@@ -210,11 +218,13 @@ bool Adxl345::I2C_ReadBuffer(uint8_t reg_addr, uint8_t *buffer, size_t length)
     timeout = 10000;
     while(!LL_I2C_IsActiveFlag_SB(I2C1)) if (!(--timeout)) return false;
 
-    LL_I2C_TransmitData8(I2C1, ADXL345_ADDR | 1);
+    // !!! ВИПРАВЛЕННЯ ТУТ: Додано << 1 (Адреса + Read біт)
+    LL_I2C_TransmitData8(I2C1, (ADXL345_ADDR << 1) | 1);
+
     timeout = 10000;
     while(!LL_I2C_IsActiveFlag_ADDR(I2C1)) if (!(--timeout)) return false;
 
-    // Вмикаємо ACK, бо ми плануємо читати багато байтів
+    // Вмикаємо ACK
     LL_I2C_AcknowledgeNextData(I2C1, LL_I2C_ACK);
     LL_I2C_ClearFlag_ADDR(I2C1);
 
@@ -229,21 +239,14 @@ bool Adxl345::I2C_ReadBuffer(uint8_t reg_addr, uint8_t *buffer, size_t length)
         length--;
     }
 
-    // --- ФАЗА 3: Останній байт (NACK + STOP) ---
-    // Ми вийшли з циклу, коли length == 1. Тобто залишився один байт в дорозі.
-
-    // 1. Готуємо NACK (щоб сказати "досить")
+    // --- ФАЗА 3: Останній байт ---
     LL_I2C_AcknowledgeNextData(I2C1, LL_I2C_NACK);
-
-    // 2. Готуємо STOP
     LL_I2C_GenerateStopCondition(I2C1);
 
-    // 3. Чекаємо останній байт
     timeout = 10000;
     while (!LL_I2C_IsActiveFlag_RXNE(I2C1)) if (!(--timeout)) return false;
 
-    // 4. Читаємо останній байт
     *buffer = LL_I2C_ReceiveData8(I2C1);
 
-    return true; // <--- НЕ ЗАБУВАЙТЕ ЦЕ!
+    return true;
 }

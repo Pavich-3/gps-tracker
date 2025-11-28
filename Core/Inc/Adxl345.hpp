@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <array>
 
+#define LED_PIN LL_GPIO_PIN_13
+
 struct Acceleration
 {
 	float x_g = 0.0f;
