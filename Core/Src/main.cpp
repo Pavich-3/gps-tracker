@@ -1,30 +1,43 @@
 #include <main.hpp>
+#include <stdio.h>
 #include "GpsDriver.hpp"
+#include "Adxl345.hpp"
 
 void SystemClock_Config(void);
 
 GpsDriver gpsDriver{};
+Adxl345 adxlDriver{};
 
 int main(void)
 {
-
   LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SYSCFG);
   LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_PWR);
 
   NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
-
   NVIC_SetPriority(SysTick_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),15, 0));
 
-
   SystemClock_Config();
+
   gpsDriver.init();
+
+  adxlDriver.init();
+  if (!adxlDriver.configure())
+  {
+	  while (1)
+	  {
+		  LL_GPIO_TogglePin(GPIOC, LED_PIN);
+		  LL_mDelay(100);
+	  }
+  }
 
   while (1)
   {
-	  if (gpsDriver.parse())
-	  {
-		  Coordinates coords = gpsDriver.getCoordinates();
-	  }
+//	  if (gpsDriver.parse())
+//	  {
+//		  Coordinates coords = gpsDriver.getCoordinates();
+//	  }
+	  Acceleration acc = adxlDriver.getAcceleration();
+	  LL_mDelay(100);
   }
 }
 
